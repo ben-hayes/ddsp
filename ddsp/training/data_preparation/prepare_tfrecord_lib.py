@@ -19,6 +19,7 @@ from absl import logging
 import apache_beam as beam
 from ddsp import spectral_ops
 import numpy as np
+import os
 import pydub
 import tensorflow.compat.v2 as tf
 
@@ -38,8 +39,17 @@ def _load_audio_as_array(audio_path: str, sample_rate: int) -> np.array:
     audio: audio in np.float32
   """
   with tf.io.gfile.GFile(audio_path, 'rb') as f:
-    # Load audio at original SR
-    audio_segment = (pydub.AudioSegment.from_file(f).set_channels(1))
+    if os.path.splitext(audio_path)[1] == ".npy":
+      audio_data = np.load(audio_path)
+      audio_segment = pydub.AudioSegment(
+          audio_data.tobytes(),
+          frame_rate=sample_rate,
+          sample_width=audio_data.dtype.itemsize,
+          channels=1,
+      )
+    else:
+      # Load audio at original SR
+      audio_segment = (pydub.AudioSegment.from_file(f).set_channels(1))
     # Compute expected length at given `sample_rate`
     expected_len = int(audio_segment.duration_seconds * sample_rate)
     # Resample to `sample_rate`
